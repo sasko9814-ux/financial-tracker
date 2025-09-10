@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Фінансовий Трекер</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#0f1724; --bg2:#06243a; --card:#0b2536; --accent:#6ee7b7; --muted:#9fb6cf;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:Inter,system-ui,Arial,sans-serif; background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  color:#e6eef6; min-height:100vh; padding:28px; display:flex; align-items:flex-start; justify-content:center;
+}
+.app{
+  width:1100px; max-width:98%; display:grid; grid-template-columns: 420px 1fr; gap:20px;
+}
+.card{
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));
+  border-radius:12px; padding:18px; box-shadow:0 8px 30px rgba(2,6,23,0.6);
+}
+.header{ grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+.header h1{ margin:0; font-size:20px;}
+.small{ color:var(--muted); font-size:13px; }
+
+.left .section{ margin-bottom:12px; }
+.input, select, button, textarea{
+  width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04);
+  background:transparent; color:inherit; font-size:14px;
+}
+.row{ display:flex; gap:8px; }
+.row .input{ flex:1; }
+.btn{ background:var(--accent); color:#063; border:none; font-weight:700; cursor:pointer; padding:10px 12px; border-radius:8px; }
+.ghost{ background:transparent; border:1px solid rgba(255,255,255,0.04); }
+.list{ margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:220px; overflow:auto; padding-right:6px;}
+.list-item{ display:flex; justify-content:space-between; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); font-size:14px; }
+.kv{ color:var(--muted); font-size:13px; }
+.warn{ color:#ffcc00; font-weight:700; }
+.negative{ color:#ff6b6b; font-weight:700; }
+.progress{ height:10px; background:rgba(255,255,255,0.04); border-radius:6px; overflow:hidden;}
+.progress > i{ display:block; height:100%; background:linear-gradient(90deg,#6ee7b7,#60a5fa); width:0%; }
+
+.right-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.canvas-wrap{ background:rgba(255,255,255,0.02); padding:12px; border-radius:8px; }
+.table{ width:100%; border-collapse:collapse; font-size:13px; }
+.table th, .table td{ text-align:left; padding:8px; border-bottom:1px dashed rgba(255,255,255,0.02); }
+.tips{ margin-top:8px; color:var(--muted); font-size:13px; }
+.footer{ grid-column:1/-1; margin-top:10px; color:var(--muted); font-size:13px; text-align:center; }
+
+/* responsive */
+@media (max-width:980px){
+  .app{ grid-template-columns: 1fr; }
+  .header{ flex-direction:column; align-items:flex-start; gap:6px;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Фінансовий Трекер</h1>
+    <div class="small">Зберігати дані в LocalStorage — локально у браузері</div>
+  </div>
+
+  <!-- LEFT: Controls -->
+  <div class="card left">
+    <div class="section">
+      <label class="kv">Місячний дохід (₴)</label>
+      <div class="row">
+        <input id="income" class="input" type="number" placeholder="Введіть дохід" />
+        <button class="btn" id="saveIncome">Зберегти</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <label class="kv">Категорії витрат</label>
+      <div class="row">
+        <input id="newCat" class="input" placeholder="Нова категорія (наприклад: Кава)" />
+        <button class="btn ghost" id="addCatBtn">Додати</button>
+      </div>
+      <div id="cats" class="list" aria-live="polite"></div>
+    </div>
+
+    <div class="section">
+      <label class="kv">Додати витрату</label>
+      <input id="expenseDesc" class="input" placeholder="Опис (необов'язково)" />
+      <div class="row" style="margin-top:8px;">
+        <input id="expenseAmount" class="input" type="number" placeholder="Сума (₴)" />
+        <select id="expenseCat" class="input"></select>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="addExpense" class="btn">Додати витрату</button>
+        <button id="clearExpenses" class="ghost">Очистити витрати</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <label class="kv">Бюджет по категорії</label>
+      <div class="row">
+        <select id="budgetCat" class="input"></select>
+        <input id="budgetAmount" class="input" type="number" placeholder="Ліміт (₴)" />
+      </div>
+      <div style="margin-top:8px;" class="row">
+        <button id="setBudget" class="btn">Встановити</button>
+        <button id="clearBudgets" class="ghost">Очистити</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <label class="kv">Скарбничка — Цілі</label>
+      <input id="goalName" class="input" placeholder="Назва цілі (наприклад: Телефон)" />
+      <div class="row" style="margin-top:8px;">
+        <input id="goalTarget" class="input" type="number" placeholder="Цільова сума (₴)" />
+        <input id="goalMonthly" class="input" type="number" placeholder="Щомісячно відкладати (₴)" />
+      </div>
+      <div style="margin-top:8px;" class="row">
+        <button id="addGoal" class="btn">Створити ціль</button>
+        <button id="clearGoals" class="ghost">Очистити</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Reports & Charts -->
+  <div class="card right">
+    <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <div>
+        <div class="kv">Залишок до кінця місяця</div>
+        <div id="remaining" style="font-size:20px; font-weight:700;">— ₴</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="kv">Найбільше витрачаєте на</div>
+        <div id="maxCat" style="font-weight:700;">—</div>
+      </div>
+    </div>
+
+    <div class="right-grid">
+      <div class="canvas-wrap">
+        <div class="kv">Діаграма витрат</div>
+        <canvas id="pieChart" height="240"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="kv">Бюджети та стан</div>
+        <table class="table" id="budgetTable"><thead><tr><th>Категорія</th><th>Витрачено</th><th>Ліміт</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;" class="canvas-wrap">
+      <div class="kv">Скарбнички (прогрес)</div>
+      <div id="goalsList"></div>
+    </div>
+
+    <div class="canvas-wrap" style="margin-top:12px;">
+      <div class="kv">Поради</div>
+      <div id="tips" class="tips">Підказки з'являться тут, якщо витрати перевищують бюджет або категорія росте.</div>
+    </div>
+
+    <div class="footer">Дані зберігаються тільки у вашому браузері (LocalStorage).</div>
+  </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+/* ---------------------------
+  Простий фінансовий трекер — збереження в localStorage
+  Усі підписи українською
+--------------------------- */
+
+const STORAGE_KEY = 'fin_tracker_v1';
+
+let state = {
+  income: 0,
+  categories: { "Їжа":0, "Оренда":0, "Транспорт":0, "Розваги":0, "Одяг":0, "Заощадження":0 },
+  expenses: [], // {amount, category, desc, time}
+  budgets: {}, // category: limit
+  goals: {} // name: {target, monthly, saved}
+};
+
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function loadState(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw) {
+    try{
+      const parsed = JSON.parse(raw);
+      state = Object.assign(state, parsed);
+    }catch(e){ console.error('cant parse state', e); }
+  }
+}
+loadState();
+
+/* UI Elements */
+const incomeEl = document.getElementById('income');
+const saveIncomeBtn = document.getElementById('saveIncome');
+const catsEl = document.getElementById('cats');
+const newCatEl = document.getElementById('newCat');
+const addCatBtn = document.getElementById('addCatBtn');
+const expenseCat = document.getElementById('expenseCat');
+const expenseDesc = document.getElementById('expenseDesc');
+const expenseAmount = document.getElementById('expenseAmount');
+const addExpenseBtn = document.getElementById('addExpense');
+const clearExpenses = document.getElementById('clearExpenses');
+const budgetCat = document.getElementById('budgetCat');
+const budgetAmount = document.getElementById('budgetAmount');
+const setBudgetBtn = document.getElementById('setBudget');
+const budgetTableBody = document.querySelector('#budgetTable tbody');
+const tipsEl = document.getElementById('tips');
+const remainingEl = document.getElementById('remaining');
+const maxCatEl = document.getElementById('maxCat');
+const pieCtx = document.getElementById('pieChart').getContext('2d');
+const addGoalBtn = document.getElementById('addGoal');
+const goalName = document.getElementById('goalName');
+const goalTarget = document.getElementById('goalTarget');
+const goalMonthly = document.getElementById('goalMonthly');
+const goalsList = document.getElementById('goalsList');
+const clearBudgets = document.getElementById('clearBudgets');
+const clearGoals = document.getElementById('clearGoals');
+
+let pieChart = null;
+
+/* ------------ Helpers ------------ */
+function formatMoney(v){ return v === null || v === undefined ? '— ₴' : v.toLocaleString('uk-UA') + '₴'; }
+
+function refreshUI(){
+  // income
+  incomeEl.value = state.income || '';
+
+  // categories list + selects
+  catsEl.innerHTML = '';
+  expenseCat.innerHTML = '';
+  budgetCat.innerHTML = '';
+  for(const k of Object.keys(state.categories)){
+    const li = document.createElement('div'); li.className='list-item';
+    li.innerHTML = `<div>${k}</div><div class="kv">${state.categories[k].toLocaleString('uk-UA')}₴</div>`;
+    catsEl.appendChild(li);
+
+    const opt = document.createElement('option'); opt.value = k; opt.textContent = k;
+    expenseCat.appendChild(opt);
+    const opt2 = opt.cloneNode(true); budgetCat.appendChild(opt2);
+  }
+
+  // expenses: calculate totals per category
+  const totals = {};
+  for(const c of Object.keys(state.categories)) totals[c]=0;
+  for(const e of state.expenses){ totals[e.category] = (totals[e.category]||0) + e.amount; }
+  // update displayed totals in category list
+  Array.from(catsEl.children).forEach((el, idx) => {
+    const k = Object.keys(state.categories)[idx];
+    el.querySelector('.kv').textContent = (totals[k]||0).toLocaleString('uk-UA') + '₴';
+  });
+
+  // remaining & max category
+  const totalSpent = state.expenses.reduce((s,e)=>s+e.amount,0);
+  const remaining = (state.income || 0) - totalSpent;
+  remainingEl.textContent = formatMoney(remaining);
+  const max = Object.keys(totals).reduce((a,b)=> totals[a] >= totals[b] ? a : b, Object.keys(totals)[0] || '-');
+  maxCatEl.textContent = max || '-';
+  // budgets table
+  budgetTableBody.innerHTML = '';
+  for(const [cat, limit] of Object.entries(state.budgets)){
+    const spent = totals[cat]||0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${cat}</td><td>${spent.toLocaleString('uk-UA')}₴</td><td>${limit.toLocaleString('uk-UA')}₴</td>
+      <td style="text-align:right">${spent>limit?'<span class="negative">Перевищено</span>':'<span class="kv">OK</span>'}</td>`;
+    budgetTableBody.appendChild(tr);
+  }
+
+  // goals
+  goalsList.innerHTML='';
+  for(const [name,data] of Object.entries(state.goals)){
+    const saved = data.saved || 0;
+    const pct = data.target ? Math.min(100, (saved/data.target)*100) : 0;
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom='8px';
+    wrap.innerHTML = `<div style="display:flex;justify-content:space-between"><div><strong>${name}</strong><div class="kv">Зібрано: ${saved.toLocaleString('uk-UA')}₴ / ${data.target.toLocaleString('uk-UA')}₴</div></div><div style="text-align:right">${Math.round(pct)}%</div></div>
+      <div class="progress" style="margin-top:6px"><i style="width:${pct}%;"></i></div>`;
+    goalsList.appendChild(wrap);
+  }
+
+  // tips: detect over-budget categories
+  const over = [];
+  for(const [cat, limit] of Object.entries(state.budgets)){
+    const spent = totals[cat]||0;
+    if(limit>0 && spent > limit) over.push({cat,spent,limit});
+  }
+  if(over.length){
+    tipsEl.innerHTML = '<strong class="warn">Увага:</strong> Перевищено бюджет у: ' + over.map(o=>`${o.cat} (${o.spent.toLocaleString('uk-UA')}₴ / ${o.limit.toLocaleString('uk-UA')}₴)`).join(', ') + '. Спробуйте зменшити витрати або скоротити покупки кави/перекусів.';
+  } else {
+    tipsEl.textContent = 'Поради: слідкуйте за категоріями. Якщо витрати ростуть — встановіть бюджет або додайте ціль заощадження.';
+  }
+
+  // chart
+  renderChart(totals);
+  saveState();
+}
+
+function renderChart(totals){
+  const labels = Object.keys(totals);
+  const data = labels.map(l=>totals[l]||0);
+  if(pieChart) pieChart.destroy();
+  pieChart = new Chart(pieCtx, {
+    type: 'pie',
+    data: { labels, datasets:[{ data, backgroundColor: generateColors(labels.length) }]},
+    options: { plugins: { legend: { position: 'bottom', labels: { color:'#e6eef6' } } } }
+  });
+}
+
+function generateColors(n){
+  const palette = ['#60a5fa','#6ee7b7','#f59e0b','#f97316','#ef4444','#7c3aed','#a78bfa','#34d399','#fb7185','#4ade80'];
+  const out=[];
+  for(let i=0;i<n;i++) out.push(palette[i%palette.length]);
+  return out;
+}
+
+/* ---------- Events ---------- */
+
+saveIncomeBtn.addEventListener('click', ()=>{
+  const v = Number(incomeEl.value || 0);
+  if(isNaN(v) || v<0){ alert('Введіть коректну суму'); return; }
+  state.income = v;
+  refreshUI();
+});
+
+addCatBtn.addEventListener('click', ()=>{
+  const name = (newCatEl.value||'').trim();
+  if(!name){ alert('Введіть назву категорії'); return; }
+  if(state.categories[name]){ alert('Категорія вже існує'); return; }
+  state.categories[name]=0;
+  newCatEl.value='';
+  refreshUI();
+});
+
+addExpenseBtn.addEventListener('click', ()=>{
+  const amt = Number(expenseAmount.value||0);
+  const cat = expenseCat.value;
+  const desc = expenseDesc.value || '';
+  if(!cat){ alert('Оберіть категорію'); return; }
+  if(isNaN(amt) || amt<=0){ alert('Введіть коректну суму'); return; }
+  const e = { amount: amt, category: cat, desc, time: Date.now() };
+  state.expenses.push(e);
+  // update category sum (for quick view)
+  state.categories[cat] = (state.categories[cat]||0) + amt;
+  expenseAmount.value=''; expenseDesc.value='';
+  refreshUI();
+});
+
+clearExpenses.addEventListener('click', ()=>{
+  if(!confirm('Очистити всі витрати? Це незворотно.')) return;
+  state.expenses=[]; for(const k of Object.keys(state.categories)) state.categories[k]=0;
+  refreshUI();
+});
+
+setBudgetBtn.addEventListener('click', ()=>{
+  const cat = budgetCat.value;
+  const limit = Number(budgetAmount.value||0);
+  if(!cat){ alert('Оберіть категорію'); return; }
+  if(isNaN(limit) || limit<0){ alert('Введіть коректний ліміт'); return; }
+  state.budgets[cat]=limit;
+  budgetAmount.value='';
+  refreshUI();
+});
+
+clearBudgets.addEventListener('click', ()=>{
+  if(!confirm('Очистити всі бюджети?')) return;
+  state.budgets={};
+  refreshUI();
+});
+
+addGoalBtn.addEventListener('click', ()=>{
+  const name = (goalName.value||'').trim();
+  const target = Number(goalTarget.value||0);
+  const monthly = Number(goalMonthly.value||0);
+  if(!name || isNaN(target) || target<=0){ alert('Заповніть назву та коректну цільову суму'); return; }
+  state.goals[name] = { target, monthly, saved: 0 };
+  goalName.value=''; goalTarget.value=''; goalMonthly.value='';
+  refreshUI();
+});
+
+clearGoals.addEventListener('click', ()=>{
+  if(!confirm('Очистити всі цілі?')) return;
+  state.goals={};
+  refreshUI();
+});
+
+/* Allow adding money to goal from remaining */
+goalsList.addEventListener('click', (ev)=>{
+  const btn = ev.target.closest('button[data-goal]');
+  if(!btn) return;
+  const name = btn.getAttribute('data-goal');
+  const amt = Number(prompt('Скільки додати до цілі (₴)?', '0') || 0);
+  if(isNaN(amt) || amt<=0) return;
+  if(!state.goals[name]) return;
+  state.goals[name].saved = (state.goals[name].saved||0) + amt;
+  refreshUI();
+});
+
+/* Init */
+refreshUI();
+
+</script>
+</body>
+</html>
